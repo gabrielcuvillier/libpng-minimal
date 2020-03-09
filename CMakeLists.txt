@@ -43,7 +43,7 @@ if(NOT PNG_BUILD_ZLIB)
   include_directories(${ZLIB_INCLUDE_DIR})
 endif()
 
-if(UNIX AND NOT APPLE AND NOT BEOS AND NOT HAIKU)
+if(UNIX AND NOT EMSCRIPTEN AND NOT APPLE AND NOT BEOS AND NOT HAIKU)
   find_library(M_LIBRARY m)
 else()
   # libm is not needed and/or not available
@@ -54,6 +54,11 @@ endif()
 option(PNG_SHARED "Build shared lib" ON)
 option(PNG_STATIC "Build static lib" ON)
 option(PNG_TESTS  "Build libpng tests" ON)
+
+if (EMSCRIPTEN)
+  set(PNG_SHARED OFF)
+  set(PNG_TESTS OFF)
+endif()
 
 # Many more configuration options could be added here
 option(PNG_FRAMEWORK "Build OS X framework" OFF)
