@@ -20,6 +20,8 @@
 
 cmake_minimum_required(VERSION 3.1)
 cmake_policy(VERSION 3.1)
+# Allow new behavior for find_package with <LIBNAME>_ROOT defined
+cmake_policy(SET CMP0074 NEW)
 
 project(libpng C ASM)
 enable_testing()
@@ -39,6 +41,9 @@ include(GNUInstallDirs)
 option(PNG_BUILD_ZLIB "Custom zlib Location, else find_package is used" OFF)
 
 if(NOT PNG_BUILD_ZLIB)
+  if (EMSCRIPTEN)
+    LIST(APPEND CMAKE_FIND_ROOT_PATH ${ZLIB_ROOT})
+  endif()
   find_package(ZLIB REQUIRED)
   include_directories(${ZLIB_INCLUDE_DIR})
 endif()
