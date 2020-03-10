@@ -20,8 +20,16 @@
 
 cmake_minimum_required(VERSION 3.1)
 cmake_policy(VERSION 3.1)
+
 # GAB: Allow new behavior for find_package with <LIBNAME>_ROOT defined
-cmake_policy(SET CMP0074 NEW)
+if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.12)
+    cmake_policy(SET CMP0074 NEW)
+endif()
+
+# Append ZLIB_ROOT to CMAKE_FIND_ROOT_PATH, to be sure it will be found BEFORE the system wide one
+if (DEFINED ZLIB_ROOT)
+    list(APPEND CMAKE_FIND_ROOT_PATH ${ZLIB_ROOT})
+endif()
 
 project(libpng C ASM)
 enable_testing()
@@ -39,16 +47,15 @@ include(GNUInstallDirs)
 # Allow users to specify location of Zlib.
 # Useful if zlib is being built alongside this as a sub-project.
 option(PNG_BUILD_ZLIB "Custom zlib Location, else find_package is used" OFF)
+# GAB: Awk scripts appears to be broken on some platforms (vanilla Ubuntu 18.04)
+option(PNG_DISABLE_AWK "Disable awk program usage" OFF)
 
 if (NOT PNG_BUILD_ZLIB)
-    # Specific hack for Emscripten: there is no system-wide root for find_package, so add ZLIB_ROOT as a possible root
-    if (EMSCRIPTEN)
-        LIST(APPEND CMAKE_FIND_ROOT_PATH ${ZLIB_ROOT})
-    endif ()
     find_package(ZLIB REQUIRED)
     include_directories(${ZLIB_INCLUDE_DIR})
 endif ()
 
+# GAB: also disable libm on EMSCRIPTEN
 if (UNIX AND NOT EMSCRIPTEN AND NOT APPLE AND NOT BEOS AND NOT HAIKU)
     find_library(M_LIBRARY m)
 else ()
@@ -275,7 +282,9 @@ if (UNIX)
     symbol_prefix()
 endif ()
 
-find_program(AWK NAMES gawk awk)
+if (NOT PNG_DISABLE_AWK)
+    find_program(AWK NAMES gawk awk)
+endif()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
@@ -558,21 +567,21 @@ endif ()
 
 if (PNG_STATIC)
     # does not work without changing name
-    set(PNG_LIB_NAME_STATIC png_static)
+  set(PNG_LIB_NAME_STATIC png_static)
     add_library(png_static STATIC ${libpng_sources})
     add_dependencies(png_static genfiles)
-    # MSVC doesn't use a different file extension for shared vs. static
-    # libs.  We are able to change OUTPUT_NAME to remove the _static
-    # for all other platforms.
-    if (NOT MSVC)
-        set_target_properties(png_static PROPERTIES
-                OUTPUT_NAME "${PNG_LIB_NAME}"
-                CLEAN_DIRECT_OUTPUT 1)
-    else ()
-        set_target_properties(png_static PROPERTIES
-                OUTPUT_NAME "${PNG_LIB_NAME}_static"
-                CLEAN_DIRECT_OUTPUT 1)
-    endif ()
+  # MSVC doesn't use a different file extension for shared vs. static
+  # libs.  We are able to change OUTPUT_NAME to remove the _static
+  # for all other platforms.
+  if(NOT MSVC)
+    set_target_properties(png_static PROPERTIES
+      OUTPUT_NAME "${PNG_LIB_NAME}"
+      CLEAN_DIRECT_OUTPUT 1)
+  else()
+    set_target_properties(png_static PROPERTIES
+      OUTPUT_NAME "${PNG_LIB_NAME}_static"
+      CLEAN_DIRECT_OUTPUT 1)
+  endif()
     list(APPEND PNG_LIB_TARGETS png_static)
     if (MSVC)
         # msvc does not append 'lib' - do it here to have consistent name
@@ -827,7 +836,7 @@ endif ()
 # We use the same files like ./configure, so we have to set its vars.
 # Only do this on Windows for Cygwin - the files don't make much sense outside
 # of a UNIX look-alike.
-if (NOT WIN32 OR CYGWIN OR MINGW)
+if(NOT WIN32 OR CYGWIN OR MINGW)
     set(prefix ${CMAKE_INSTALL_PREFIX})
     set(exec_prefix ${CMAKE_INSTALL_PREFIX})
     set(libdir ${CMAKE_INSTALL_FULL_LIBDIR})
@@ -860,28 +869,28 @@ if (NOT SKIP_INSTALL_LIBRARIES AND NOT SKIP_INSTALL_ALL)
             ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
             FRAMEWORK DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
-    if (PNG_SHARED)
-        # Create a symlink for libpng.dll.a => libpng16.dll.a on Cygwin
-        if (CYGWIN OR MINGW)
-            create_symlink(libpng${CMAKE_IMPORT_LIBRARY_SUFFIX} TARGET png)
-            install(FILES $<TARGET_LINKER_FILE_DIR:png>/libpng${CMAKE_IMPORT_LIBRARY_SUFFIX}
-                    DESTINATION ${CMAKE_INSTALL_LIBDIR})
-        endif ()
+  if(PNG_SHARED)
+    # Create a symlink for libpng.dll.a => libpng16.dll.a on Cygwin
+    if(CYGWIN OR MINGW)
+      create_symlink(libpng${CMAKE_IMPORT_LIBRARY_SUFFIX} TARGET png)
+      install(FILES $<TARGET_LINKER_FILE_DIR:png>/libpng${CMAKE_IMPORT_LIBRARY_SUFFIX}
+              DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    endif()
 
-        if (NOT WIN32)
-            create_symlink(libpng${CMAKE_SHARED_LIBRARY_SUFFIX} TARGET png)
-            install(FILES $<TARGET_LINKER_FILE_DIR:png>/libpng${CMAKE_SHARED_LIBRARY_SUFFIX}
-                    DESTINATION ${CMAKE_INSTALL_LIBDIR})
-        endif ()
-    endif ()
+    if(NOT WIN32)
+      create_symlink(libpng${CMAKE_SHARED_LIBRARY_SUFFIX} TARGET png)
+      install(FILES $<TARGET_LINKER_FILE_DIR:png>/libpng${CMAKE_SHARED_LIBRARY_SUFFIX}
+              DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    endif()
+  endif()
 
-    if (PNG_STATIC)
-        if (NOT WIN32 OR CYGWIN OR MINGW)
-            create_symlink(libpng${CMAKE_STATIC_LIBRARY_SUFFIX} TARGET png_static)
-            install(FILES $<TARGET_LINKER_FILE_DIR:png_static>/libpng${CMAKE_STATIC_LIBRARY_SUFFIX}
-                    DESTINATION ${CMAKE_INSTALL_LIBDIR})
-        endif ()
-    endif ()
+  if(PNG_STATIC)
+    if(NOT WIN32 OR CYGWIN OR MINGW)
+      create_symlink(libpng${CMAKE_STATIC_LIBRARY_SUFFIX} TARGET png_static)
+      install(FILES $<TARGET_LINKER_FILE_DIR:png_static>/libpng${CMAKE_STATIC_LIBRARY_SUFFIX}
+              DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    endif()
+  endif()
 endif ()
 
 if (NOT SKIP_INSTALL_HEADERS AND NOT SKIP_INSTALL_ALL)
