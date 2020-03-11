@@ -573,7 +573,8 @@ if (PNG_STATIC)
   # MSVC doesn't use a different file extension for shared vs. static
   # libs.  We are able to change OUTPUT_NAME to remove the _static
   # for all other platforms.
-  if(NOT MSVC)
+  # GAB: Also remove the _static suffic if MSVC and NOT PNG_SHARED (no possibility of name clash)
+  if(NOT MSVC OR NOT PNG_SHARED)
     set_target_properties(png_static PROPERTIES
       OUTPUT_NAME "${PNG_LIB_NAME}"
       CLEAN_DIRECT_OUTPUT 1)
@@ -582,12 +583,12 @@ if (PNG_STATIC)
       OUTPUT_NAME "${PNG_LIB_NAME}_static"
       CLEAN_DIRECT_OUTPUT 1)
   endif()
-    list(APPEND PNG_LIB_TARGETS png_static)
-    if (MSVC)
-        # msvc does not append 'lib' - do it here to have consistent name
-        set_target_properties(png_static PROPERTIES PREFIX "lib")
-    endif ()
-    target_link_libraries(png_static ${ZLIB_LIBRARY} ${M_LIBRARY})
+  list(APPEND PNG_LIB_TARGETS png_static)
+  if (MSVC)
+    # msvc does not append 'lib' - do it here to have consistent name
+    set_target_properties(png_static PROPERTIES PREFIX "lib")
+  endif ()
+  target_link_libraries(png_static ${ZLIB_LIBRARY} ${M_LIBRARY})
 endif ()
 
 if (PNG_FRAMEWORK)
@@ -836,12 +837,16 @@ endif ()
 # We use the same files like ./configure, so we have to set its vars.
 # Only do this on Windows for Cygwin - the files don't make much sense outside
 # of a UNIX look-alike.
-if(NOT WIN32 OR CYGWIN OR MINGW)
+if(UNIX OR MINGW)
     set(prefix ${CMAKE_INSTALL_PREFIX})
     set(exec_prefix ${CMAKE_INSTALL_PREFIX})
     set(libdir ${CMAKE_INSTALL_FULL_LIBDIR})
     set(includedir ${CMAKE_INSTALL_FULL_INCLUDEDIR})
-    set(LIBS "-lz -lm")
+    if(NOT EMSCRIPTEN)
+        set(LIBS "-lz -lm")
+    else()
+        set(LIBS "-lz")
+    endif()
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/libpng.pc.in
             ${CMAKE_CURRENT_BINARY_DIR}/${PNGLIB_NAME}.pc @ONLY)
     create_symlink(libpng.pc FILE ${PNGLIB_NAME}.pc)
@@ -877,7 +882,7 @@ if (NOT SKIP_INSTALL_LIBRARIES AND NOT SKIP_INSTALL_ALL)
               DESTINATION ${CMAKE_INSTALL_LIBDIR})
     endif()
 
-    if(NOT WIN32)
+    if(UNIX)
       create_symlink(libpng${CMAKE_SHARED_LIBRARY_SUFFIX} TARGET png)
       install(FILES $<TARGET_LINKER_FILE_DIR:png>/libpng${CMAKE_SHARED_LIBRARY_SUFFIX}
               DESTINATION ${CMAKE_INSTALL_LIBDIR})
@@ -885,7 +890,7 @@ if (NOT SKIP_INSTALL_LIBRARIES AND NOT SKIP_INSTALL_ALL)
   endif()
 
   if(PNG_STATIC)
-    if(NOT WIN32 OR CYGWIN OR MINGW)
+    if(UNIX OR MINGW)
       create_symlink(libpng${CMAKE_STATIC_LIBRARY_SUFFIX} TARGET png_static)
       install(FILES $<TARGET_LINKER_FILE_DIR:png_static>/libpng${CMAKE_STATIC_LIBRARY_SUFFIX}
               DESTINATION ${CMAKE_INSTALL_LIBDIR})
@@ -898,7 +903,7 @@ if (NOT SKIP_INSTALL_HEADERS AND NOT SKIP_INSTALL_ALL)
     install(FILES ${libpng_public_hdrs} DESTINATION include/${PNGLIB_NAME})
 endif ()
 if (NOT SKIP_INSTALL_EXECUTABLES AND NOT SKIP_INSTALL_ALL)
-    if (NOT WIN32 OR CYGWIN OR MINGW)
+    if (UNIX OR MINGW)
         install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/libpng-config DESTINATION bin)
         install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${PNGLIB_NAME}-config DESTINATION bin)
     endif ()
@@ -917,7 +922,7 @@ if (NOT SKIP_INSTALL_FILES AND NOT SKIP_INSTALL_ALL)
     install(FILES libpng.3 libpngpf.3 DESTINATION ${PNG_MAN_DIR}/man3)
     install(FILES png.5 DESTINATION ${PNG_MAN_DIR}/man5)
     # Install pkg-config files
-    if (NOT CMAKE_HOST_WIN32 OR CYGWIN OR MINGW)
+    if (UNIX OR MINGW)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libpng.pc
                 DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
         install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/libpng-config
