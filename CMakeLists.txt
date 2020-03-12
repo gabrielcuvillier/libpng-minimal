@@ -49,6 +49,8 @@ include(GNUInstallDirs)
 option(PNG_BUILD_ZLIB "Custom zlib Location, else find_package is used" OFF)
 # GAB: Awk scripts appears to be broken on some platforms (vanilla Ubuntu 18.04)
 option(PNG_DISABLE_AWK "Disable awk program usage" OFF)
+# GAB: Allow to not prefix lib with 'lib' on MSVC
+option(PNG_MSVC_DO_NOT_PREFIX_LIB "Do not prefix lib with 'lib' on MSVC" OFF)
 
 if (NOT PNG_BUILD_ZLIB)
     find_package(ZLIB REQUIRED)
@@ -584,7 +586,7 @@ if (PNG_STATIC)
       CLEAN_DIRECT_OUTPUT 1)
   endif()
   list(APPEND PNG_LIB_TARGETS png_static)
-  if (MSVC)
+  if (MSVC AND NOT PNG_MSVC_DO_NOT_PREFIX_LIB)
     # msvc does not append 'lib' - do it here to have consistent name
     set_target_properties(png_static PROPERTIES PREFIX "lib")
   endif ()
