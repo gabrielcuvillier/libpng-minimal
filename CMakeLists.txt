@@ -31,7 +31,7 @@ if (DEFINED ZLIB_ROOT)
     list(APPEND CMAKE_FIND_ROOT_PATH ${ZLIB_ROOT})
 endif()
 
-project(libpng C ASM)
+project(libpng C)
 enable_testing()
 
 set(PNGLIB_MAJOR 1)
